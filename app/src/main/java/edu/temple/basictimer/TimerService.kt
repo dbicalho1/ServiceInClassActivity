@@ -3,8 +3,9 @@ package edu.temple.basictimer
 import android.app.Service
 import android.content.Intent
 import android.os.Binder
+import android.os.CountDownTimer
 import android.os.IBinder
-import android.util.Log
+import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -19,109 +20,87 @@ object TimerInfo {
 
 class TimerService : Service() {
 
+    private var timer: CountDownTimer? = null
+    private var remainingMillis = 0L
+    private var deadlineMillis = 0L
     private var isRunning = false
-
-    lateinit var t: TimerThread
-
     private var paused = false
+    private val binder = TimerBinder()
 
     inner class TimerBinder : Binder() {
-
-        // Check if Timer is already running
         val isRunning: Boolean
             get() = this@TimerService.isRunning
 
-        // Check if Timer is paused
         val isPaused: Boolean
-            get() = this@TimerService.paused
+            get() = paused
 
-        // Start a new timer
-        fun start(startValue: Int){
-
-            if (!isPaused) {
-                if (!isRunning) {
-                    if (::t.isInitialized) t.interrupt()
-                    this@TimerService.start(startValue)
-                }
-            } else {
-                pause()
+        // Starting a paused timer resumes its remaining time.
+        fun start(startValue: Int) {
+            if (isRunning) return
+            if (!paused) {
+                require(startValue > 0) { "Timer duration must be positive" }
+                remainingMillis = startValue * 1000L
             }
+            startCountdown()
         }
 
-
-        // Stop a currently running timer
         fun stop() {
-            if (::t.isInitialized || isRunning) {
-                t.interrupt()
-            }
+            stopCountdown()
         }
 
-        // Pause a running timer
         fun pause() {
-            this@TimerService.pause()
-        }
-
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-
-        Log.d("TimerService status", "Created")
-    }
-
-    override fun onBind(intent: Intent): IBinder {
-        return TimerBinder()
-    }
-
-    fun start(startValue: Int) {
-        t = TimerThread(startValue)
-        t.start()
-    }
-
-    fun pause () {
-        if (::t.isInitialized) {
-            paused = !paused
-            isRunning = !paused
-        }
-    }
-
-    inner class TimerThread(private val startValue: Int) : Thread() {
-
-        override fun run() {
-            isRunning = true
-            try {
-                for (i in startValue downTo 1)  {
-                    Log.d("Countdown", i.toString())
-
-                    TimerInfo.postNewTime(i)
-
-                    while (paused);
-                    sleep(1000)
-
-                }
-                isRunning = false
-            } catch (e: InterruptedException) {
-                Log.d("Timer interrupted", e.toString())
-                isRunning = false
-                paused = false
+            if (paused) {
+                startCountdown()
+            } else if (isRunning) {
+                remainingMillis = (deadlineMillis - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+                timer?.cancel()
+                timer = null
+                this@TimerService.isRunning = false
+                paused = remainingMillis > 0L
+                publishRemainingTime()
             }
         }
+    }
 
+    override fun onBind(intent: Intent): IBinder = binder
+
+    private fun startCountdown() {
+        paused = false
+        isRunning = true
+        deadlineMillis = SystemClock.elapsedRealtime() + remainingMillis
+        publishRemainingTime()
+        timer = object : CountDownTimer(remainingMillis, 100L) {
+            override fun onTick(millisUntilFinished: Long) {
+                remainingMillis = millisUntilFinished
+                publishRemainingTime()
+            }
+
+            override fun onFinish() {
+                stopCountdown()
+            }
+        }.start()
+    }
+
+    private fun publishRemainingTime() {
+        TimerInfo.postNewTime(((remainingMillis + 999L) / 1000L).toInt())
+    }
+
+    private fun stopCountdown() {
+        timer?.cancel()
+        timer = null
+        remainingMillis = 0L
+        isRunning = false
+        paused = false
+        TimerInfo.postNewTime(0)
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        if (::t.isInitialized) {
-            t.interrupt()
-        }
-
+        stopCountdown()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
+        stopCountdown()
         super.onDestroy()
-
-        Log.d("TimerService status", "Destroyed")
     }
-
-
 }

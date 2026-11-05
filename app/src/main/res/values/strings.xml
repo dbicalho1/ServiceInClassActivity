@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Basic Timer</string>
+    <string name="start">Start</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="stop">Stop</string>
+    <string name="timer_value">%1$d</string>
+    <string name="timer_initial_value">0</string>
 </resources>

@@ -12,7 +12,7 @@
         android:layout_height="53dp"
         android:layout_marginStart="16dp"
         android:backgroundTint="#00FF00"
-        android:text="Start"
+        android:text="@string/start"
         app:layout_constraintBottom_toBottomOf="@+id/stopButton"
         app:layout_constraintStart_toStartOf="parent" />
 
@@ -23,7 +23,7 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="220dp"
         android:backgroundTint="#ff0000"
-        android:text="Stop"
+        android:text="@string/stop"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -31,7 +31,7 @@
         android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="0"
+        android:text="@string/timer_initial_value"
         android:textSize="96sp"
         app:layout_constraintBottom_toTopOf="@+id/stopButton"
         app:layout_constraintEnd_toEndOf="parent"
