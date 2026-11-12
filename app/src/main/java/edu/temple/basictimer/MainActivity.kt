@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -46,17 +48,8 @@ class MainActivity : AppCompatActivity() {
             Context.BIND_AUTO_CREATE
         )
 
-        startButton.setOnClickListener {
-            timerBinder?.let { binder ->
-                if (binder.isRunning) binder.pause() else binder.start(DEFAULT_DURATION_SECONDS)
-            }
-            updateButtons()
-        }
-
-        stopButton.setOnClickListener {
-            timerBinder?.stop()
-            updateButtons()
-        }
+        startButton.setOnClickListener { toggleTimer() }
+        stopButton.setOnClickListener { stopTimer() }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -66,6 +59,41 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.timer_actions, menu)
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.action_start).apply {
+            title = startButton.text
+            isEnabled = startButton.isEnabled
+        }
+        menu.findItem(R.id.action_stop).isEnabled = stopButton.isEnabled
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.action_start -> toggleTimer()
+            R.id.action_stop -> stopTimer()
+            else -> return super.onOptionsItemSelected(item)
+        }
+        return true
+    }
+
+    private fun toggleTimer() {
+        timerBinder?.let { binder ->
+            if (binder.isRunning) binder.pause() else binder.start(DEFAULT_DURATION_SECONDS)
+        }
+        updateButtons()
+    }
+
+    private fun stopTimer() {
+        timerBinder?.stop()
+        updateButtons()
     }
 
     private fun updateButtons() {
@@ -79,6 +107,7 @@ class MainActivity : AppCompatActivity() {
             }
         )
         stopButton.isEnabled = binder != null && (binder.isRunning || binder.isPaused)
+        invalidateOptionsMenu()
     }
 
     override fun onDestroy() {
